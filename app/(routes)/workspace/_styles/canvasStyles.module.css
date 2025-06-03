@@ -1,0 +1,42 @@
+.canvasWrapper {
+  width: 100%;
+  background: #6e4b2a;
+  display: flex;
+  flex-direction: column;
+}
+
+.canvasWrapper :global(.excalidraw) {
+  --color-primary: #a67c52;
+  --color-primary-darker: #7c5c3e;
+  --color-primary-darkest: #3e2c1c;
+  --color-surface: #6e4b2a;
+  --color-surface-darker: #5c432a;
+  --color-surface-darkest: #3e2c1c;
+  --color-text-primary: #e6d3b3;
+  --color-text-secondary: #a67c52;
+  --color-muted: #7c5c3e;
+  --color-muted-darker: #5c432a;
+  --color-muted-darkest: #3e2c1c;
+  --color-border: #7c5c3e;
+  --color-border-muted: #5c432a;
+  --color-selection: rgba(166, 124, 82, 0.1);
+}
+
+.canvasWrapper :global(.excalidraw) ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.canvasWrapper :global(.excalidraw) ::-webkit-scrollbar-track {
+  background: var(--color-surface-darker);
+  border-radius: 4px;
+}
+
+.canvasWrapper :global(.excalidraw) ::-webkit-scrollbar-thumb {
+  background: var(--color-primary);
+  border-radius: 4px;
+}
+
+.canvasWrapper :global(.excalidraw) ::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary-darker);
+}
