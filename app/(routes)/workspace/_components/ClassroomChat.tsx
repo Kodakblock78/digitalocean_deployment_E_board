@@ -22,6 +22,29 @@ const createDefaultRooms = () => {
   }));
 };
 
+// Mock server functions
+async function fetchRoomsFromServer() {
+  // Simulate server fetch with a delay
+  await new Promise(res => setTimeout(res, 500));
+  return createDefaultRooms();
+}
+
+async function createRoomOnServer(name: string) {
+  // Simulate server room creation
+  await new Promise(res => setTimeout(res, 500));
+  return { id: `room-${Date.now()}`, name, participantCount: 0 };
+}
+
+async function deleteRoomOnServer(roomId: string) {
+  // Simulate server room deletion
+  await new Promise(res => setTimeout(res, 500));
+}
+
+async function renameRoomOnServer(roomId: string, newName: string) {
+  // Simulate server room renaming
+  await new Promise(res => setTimeout(res, 500));
+}
+
 export function ClassroomChat() {
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [userName, setUserName] = useState<string>('');
@@ -30,14 +53,7 @@ export function ClassroomChat() {
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [roomToDelete, setRoomToDelete] = useState<string | null>(null);
-  const [rooms, setRooms] = useState<Room[]>(() => {
-    try {
-      const savedRooms = localStorage.getItem('chatRooms');
-      return savedRooms ? JSON.parse(savedRooms) : createDefaultRooms();
-    } catch {
-      return createDefaultRooms();
-    }
-  });
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
   const eventSourceRef = useRef<EventSource | null>(null);
 
@@ -92,6 +108,22 @@ export function ClassroomChat() {
     }
   }, [messages, selectedRoom]);
 
+  // Persist groups in sessionStorage so they survive tab changes
+  useEffect(() => {
+    // On mount, try to load from sessionStorage first
+    const saved = sessionStorage.getItem('chatRooms');
+    if (saved) {
+      try {
+        setRooms(JSON.parse(saved));
+      } catch {}
+    }
+  }, []);
+
+  useEffect(() => {
+    // Whenever rooms change, save to sessionStorage
+    sessionStorage.setItem('chatRooms', JSON.stringify(rooms));
+  }, [rooms]);
+
   // Send message via POST
   const sendMessage = async (content: string) => {
     if (!selectedRoom || !userName || !content.trim()) return;
@@ -107,35 +139,38 @@ export function ClassroomChat() {
   };
 
   // Room creation (admin only)
-  const handleCreateRoom = () => {
+  const handleCreateRoom = async () => {
     if (view === 'admin') {
-      const nextGroupNumber = rooms.length;
-      const newRoom = {
-        id: `room-${Date.now()}`,
-        name: `Chat Group ${nextGroupNumber}`,
-        participantCount: 0
-      };
-      setRooms([...rooms, newRoom]);
-      localStorage.setItem('chatRooms', JSON.stringify([...rooms, newRoom]));
-      toast.success('Group created!');
+      const newRoom = await createRoomOnServer(`Chat Group ${rooms.length}`);
+      if (newRoom) {
+        setRooms(prev => [...prev, newRoom]);
+        toast.success('Group created!');
+      } else {
+        toast.error('Failed to create group');
+      }
     } else {
       toast.error('Only admin can create groups');
     }
   };
 
-  // Join room (no password, just set state)
+  // Join room (only if room exists)
   const handleJoinRoom = (room: Room) => {
+    // Only allow joining if the room exists in the rooms list
+    const found = rooms.find(r => r.id === room.id);
+    if (!found) {
+      toast.error('Room does not exist.');
+      return;
+    }
     setSelectedRoom(room);
     setShowNamePrompt(false);
   };
 
   // Delete room (admin only)
-  const confirmDeleteRoom = (roomId: string) => {
+  const confirmDeleteRoom = async (roomId: string) => {
     if (view === 'admin') {
-      const updatedRooms = rooms.filter(room => room.id !== roomId);
-      setRooms(updatedRooms);
-      localStorage.setItem('chatRooms', JSON.stringify(updatedRooms));
-      setSelectedRoom(updatedRooms[0] || null);
+      await deleteRoomOnServer(roomId);
+      setRooms(rooms => rooms.filter(room => room.id !== roomId));
+      setSelectedRoom(null);
       setRoomToDelete(null);
       toast.success('Group deleted!');
     } else {
@@ -145,11 +180,10 @@ export function ClassroomChat() {
   };
 
   // Rename room (admin only)
-  const handleRenameRoom = (roomId: string) => {
+  const handleRenameRoom = async (roomId: string) => {
     if (view === 'admin' && editingName.trim()) {
-      const updatedRooms = rooms.map(room => room.id === roomId ? { ...room, name: editingName } : room);
-      setRooms(updatedRooms);
-      localStorage.setItem('chatRooms', JSON.stringify(updatedRooms));
+      await renameRoomOnServer(roomId, editingName);
+      setRooms(rooms => rooms.map(room => room.id === roomId ? { ...room, name: editingName } : room));
       setEditingRoomId(null);
       setEditingName('');
       toast.success('Group renamed!');
@@ -280,6 +314,9 @@ export function ClassroomChat() {
                   )}
                 </div>
                 <div className="max-h-48 overflow-y-auto space-y-2 rounded-lg border border-[#7c5c3e] p-2">
+                  {rooms.length === 0 && (
+                    <div className="text-[#a67c52] text-center py-2">No groups available</div>
+                  )}
                   {rooms.map((room) => (
                     <button
                       key={room.id}
@@ -296,6 +333,7 @@ export function ClassroomChat() {
                           ({room.participantCount} {room.participantCount === 1 ? 'member' : 'members'})
                         </span>
                       </div>
+                      <span className="text-xs text-[#a67c52]">{room.id}</span>
                       <ChevronRight className="h-5 w-5" />
                     </button>
                   ))}
@@ -313,10 +351,10 @@ export function ClassroomChat() {
                       setIsAdmin(true);
                     }
                   }
-                  if (selectedRoom) {
+                  if (selectedRoom && rooms.find(r => r.id === selectedRoom.id)) {
                     handleJoinRoom(selectedRoom);
                   } else {
-                    toast.error('Please select a group');
+                    toast.error('Please select a valid group');
                   }
                 }}
                 disabled={!userName.trim() || !selectedRoom || (view === 'admin' && !adminPw && !isAdmin)}
