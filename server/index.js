@@ -25,10 +25,11 @@ app.prepare().then(() => {
   const io = new Server(server, {
     path: '/api/socket',
     addTrailingSlash: false,
-    transports: ['websocket'],
+    transports: ['websocket', 'polling'],
     cors: {
-      origin: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+      origin: "*",  // Allow all origins in production
       methods: ["GET", "POST"],
+      credentials: true
     },
   });
 
