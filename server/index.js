@@ -27,10 +27,12 @@ app.prepare().then(() => {
     addTrailingSlash: false,
     transports: ['websocket', 'polling'],
     cors: {
-      origin: "*",  // Allow all origins in production
+      origin: "*",
       methods: ["GET", "POST"],
       credentials: true
     },
+    pingTimeout: 60000,
+    pingInterval: 25000
   });
 
   // Store active rooms and their participants

@@ -25,7 +25,7 @@ export function useSocket(roomId: string, username: string) {
   const socketRef = useRef<Socket>();
 
   useEffect(() => {
-    const socket = io(process.env.NEXT_PUBLIC_APP_URL || '/', {
+    const socket = io(`http://${window.location.hostname}:3000`, {
       path: '/api/socket',
       transports: ['websocket', 'polling'],
       reconnectionDelay: 1000,
