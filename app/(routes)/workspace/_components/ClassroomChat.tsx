@@ -5,7 +5,9 @@ import { Plus, Trash2, User2, ChevronRight, Shield, Users, Edit2, Check } from '
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useSocket } from '@/lib/hooks/useSocket';
 
 interface Room {
   id: string;
@@ -54,7 +56,8 @@ export function ClassroomChat() {
   const [editingName, setEditingName] = useState('');
   const [roomToDelete, setRoomToDelete] = useState<string | null>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [roomIdInput, setRoomIdInput] = useState<string>('');
   const eventSourceRef = useRef<EventSource | null>(null);
 
   // Add admin password state
@@ -65,6 +68,11 @@ export function ClassroomChat() {
 
   // Add state for join modal
   const [pendingRoom, setPendingRoom] = useState<Room | null>(null);
+
+  const { messages, sendMessage, participantCount, availableRooms } = useSocket(
+    selectedRoom?.id,
+    userName || 'Anonymous'
+  );
 
   // Load chat history from localStorage
   useEffect(() => {
@@ -124,18 +132,36 @@ export function ClassroomChat() {
     sessionStorage.setItem('chatRooms', JSON.stringify(rooms));
   }, [rooms]);
 
-  // Send message via POST
-  const sendMessage = async (content: string) => {
-    if (!selectedRoom || !userName || !content.trim()) return;
-    await fetch('/api/socket', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        room: selectedRoom.id,
-        type: 'chat-message',
-        data: { sender: userName, content },
-      })
-    });
+  const scrollToBottom = () => {
+    eventSourceRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Join room by ID or create new room
+  const handleJoinRoom = () => {
+    if (!userName) {
+      toast.error('Please enter your name first');
+      return;
+    }
+    if (!roomIdInput) {
+      toast.error('Please enter a room ID');
+      return;
+    }
+    const foundRoom = rooms.find(room => room.id === roomIdInput);
+    if (foundRoom) {
+      setSelectedRoom(foundRoom);
+      setShowNamePrompt(false);
+    } else {
+      // Create new room if not found
+      const newRoom = createRoomOnServer(roomIdInput);
+      setRooms(prev => [...prev, newRoom]);
+      setSelectedRoom(newRoom);
+      setShowNamePrompt(false);
+      toast.success('New room created!');
+    }
   };
 
   // Room creation (admin only)
@@ -151,18 +177,6 @@ export function ClassroomChat() {
     } else {
       toast.error('Only admin can create groups');
     }
-  };
-
-  // Join room (only if room exists)
-  const handleJoinRoom = (room: Room) => {
-    // Only allow joining if the room exists in the rooms list
-    const found = rooms.find(r => r.id === room.id);
-    if (!found) {
-      toast.error('Room does not exist.');
-      return;
-    }
-    setSelectedRoom(room);
-    setShowNamePrompt(false);
   };
 
   // Delete room (admin only)
@@ -299,6 +313,17 @@ export function ClassroomChat() {
                 />
               </div>
 
+              {/* Room ID Input */}
+              <div className="w-full mb-6">
+                <input
+                  type="text"
+                  value={roomIdInput}
+                  onChange={(e) => setRoomIdInput(e.target.value)}
+                  className="w-full p-3 rounded-lg bg-[#5c432a] text-[#e6d3b3] outline-none border-2 border-[#7c5c3e] focus:border-[#a67c52] transition-colors placeholder-[#7c5c3e]"
+                  placeholder="Enter room ID to join or create a new room"
+                />
+              </div>
+
               {/* Group Selection */}
               <div className="w-full mb-6">
                 <div className="flex justify-between items-center mb-2">
@@ -352,7 +377,7 @@ export function ClassroomChat() {
                     }
                   }
                   if (selectedRoom && rooms.find(r => r.id === selectedRoom.id)) {
-                    handleJoinRoom(selectedRoom);
+                    handleJoinRoom();
                   } else {
                     toast.error('Please select a valid group');
                   }
