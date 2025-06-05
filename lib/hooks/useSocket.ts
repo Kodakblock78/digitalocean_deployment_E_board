@@ -2,19 +2,10 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 
 export interface Message {
-  id: number;
+  id: string;
   content: string;
   sender: string;
   timestamp: string;
-}
-
-interface SystemMessage {
-  content: string;
-  timestamp: string;
-}
-
-interface RoomInfo {
-  participantCount: number;
 }
 
 export function useSocket(roomId: string, username: string) {
@@ -24,67 +15,65 @@ export function useSocket(roomId: string, username: string) {
   const eventSourceRef = useRef<EventSource>();
 
   useEffect(() => {
-    const eventSource = new EventSource(`/api/rooms?roomId=${roomId}&username=${username}`);
+    const eventSource = new EventSource(`/api/socket?room=${roomId}&username=${username}`);
+    eventSourceRef.current = eventSource;
+    setIsConnected(true);
 
-    eventSource.onopen = () => {
-      setIsConnected(true);
-      toast.success('Connected to chat');
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      switch (data.type) {
+        case 'message':
+          setMessages((prev) => [...prev, data.data]);
+          break;
+        case 'user-joined':
+          toast.success(`${data.data.username} joined the room`);
+          setParticipantCount((prev) => prev + 1);
+          break;
+        case 'user-left':
+          toast.info(`${data.data.username} left the room`);
+          setParticipantCount((prev) => Math.max(0, prev - 1));
+          break;
+      }
     };
 
     eventSource.onerror = () => {
       setIsConnected(false);
-      toast.error('Disconnected from chat');
+      toast.error('Connection lost. Trying to reconnect...');
     };
 
-    eventSource.addEventListener('message', (event) => {
-      const data = JSON.parse(event.data);
-      setMessages((prev) => [...prev, data]);
-    });
-
-    eventSource.addEventListener('system', (event) => {
-      const data = JSON.parse(event.data);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          content: data.content,
-          sender: 'System',
-          timestamp: data.timestamp,
-        },
-      ]);
-    });
-
-    eventSource.addEventListener('room-info', (event) => {
-      const data = JSON.parse(event.data);
-      setParticipantCount(data.participantCount);
-    });
-
-    eventSourceRef.current = eventSource;
-
     return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        fetch(`/api/rooms?roomId=${roomId}&username=${username}`, { method: 'DELETE' });
-      }
+      eventSource.close();
+      setIsConnected(false);
     };
   }, [roomId, username]);
 
   const sendMessage = useCallback(
     async (content: string) => {
-      if (!isConnected) return;
+      if (!isConnected) {
+        toast.error('Not connected');
+        return;
+      }
 
       try {
-        await fetch('/api/rooms', {
+        const response = await fetch('/api/socket', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            roomId,
-            message: content,
-            username,
+            room: roomId,
+            type: 'message',
+            data: {
+              content,
+              sender: username,
+            },
           }),
         });
+
+        if (!response.ok) {
+          throw new Error('Failed to send message');
+        }
       } catch (error) {
         toast.error('Failed to send message');
       }
