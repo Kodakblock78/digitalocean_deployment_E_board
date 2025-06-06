@@ -10,7 +10,6 @@ import WorkSpaceHeader from "../_components/WorkSpaceHeader";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { RenameDialog } from "../_components/RenameDialog";
-import { ClassroomChat } from "../_components/ClassroomChat";
 
 interface File {
   _id: string;
@@ -38,7 +37,6 @@ const Workspace = ({ params }: any) => {
   const [showNewFileModal, setShowNewFileModal] = useState(false);
   const [triggerSave, setTriggerSave] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [sidebarView, setSidebarView] = useState<'admin' | 'student'>('student');
   const [showRenameDialog, setShowRenameDialog] = useState(false);
 
   // Load files from localStorage on component mount
@@ -156,14 +154,11 @@ const Workspace = ({ params }: any) => {
       name: "Document",
     },
     {
-      name: "Classroom",
-    },
-    {
       name: "Canvas",
     },
   ];
 
-  const [activeTab, setActiveTab] = useState(Tabs[2].name); // Set Canvas as default
+  const [activeTab, setActiveTab] = useState(Tabs[1].name); // Set Canvas as default
 
   return (
     <>
@@ -369,16 +364,6 @@ const Workspace = ({ params }: any) => {
                 Select or create a file to start editing.
               </div>
             )}
-          </div>
-        ) : activeTab === "Classroom" ? (
-          <div
-            style={{
-              height: "calc(100vh - 3rem)",
-              background: "#6e4b2a",
-            }}
-            className="flex"
-          >
-            <ClassroomChat />
           </div>
         ) : null}
       </div>
