@@ -158,7 +158,7 @@ const Workspace = ({ params }: any) => {
     },
   ];
 
-  const [activeTab, setActiveTab] = useState(Tabs[1].name); // Set Canvas as default
+  const [activeTab, setActiveTab] = useState(Tabs[0].name); // Set Canvas as default
 
   return (
     <>
