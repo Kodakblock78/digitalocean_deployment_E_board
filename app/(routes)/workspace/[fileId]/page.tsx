@@ -10,6 +10,7 @@ import WorkSpaceHeader from "../_components/WorkSpaceHeader";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { RenameDialog } from "../_components/RenameDialog";
+import { Button } from "@/components/ui/button";
 
 interface File {
   _id: string;
@@ -38,6 +39,47 @@ const Workspace = ({ params }: any) => {
   const [triggerSave, setTriggerSave] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showRenameDialog, setShowRenameDialog] = useState(false);
+  const [showNewCanvasModal, setShowNewCanvasModal] = useState(false);
+
+  const onCreateCanvas = () => {
+    setNewFileName("Untitled Canvas");
+    setShowNewFileModal(true);
+    // S'assurer que nous sommes dans l'onglet Canvas
+    setActiveTab("Canvas");
+  };
+
+  const handleCreateFile = () => {
+    if (!newFileName.trim()) return;
+
+    const newId = Date.now().toString();
+    const isCanvas = activeTab === "Canvas";
+    
+    const newFile = {
+      _id: newId,
+      fileName: newFileName,
+      content: !isCanvas ? "" : undefined,
+      whiteboard: isCanvas ? JSON.stringify([]) : undefined
+    };
+
+    const updatedFiles = [...files, newFile];
+    setFiles(updatedFiles);
+    localStorage.setItem('files', JSON.stringify(updatedFiles));
+    
+    // Sélectionner le nouveau fichier
+    setSelectedFileId(newId);
+    setCurrentFileName(newFileName);
+    
+    // Fermer la modal et réinitialiser le nom
+    setShowNewFileModal(false);
+    setNewFileName("");
+
+    // S'assurer que nous restons dans le bon onglet
+    if (isCanvas) {
+      setActiveTab("Canvas");
+    }
+    
+    toast.success(`New ${isCanvas ? 'canvas' : 'document'} created successfully`);
+  };
 
   // Load files from localStorage on component mount
   useEffect(() => {
@@ -131,22 +173,6 @@ const Workspace = ({ params }: any) => {
     setCurrentFileName(newName);
     localStorage.setItem('files', JSON.stringify(updatedFiles));
     toast.success('File renamed successfully');
-  };
-
-  const handleCreateFile = () => {
-    if (!newFileName.trim()) return;
-
-    const newFile = {
-      _id: Date.now().toString(), // Simple unique ID generation
-      fileName: newFileName,
-      content: ""
-    };
-
-    const updatedFiles = [...files, newFile];
-    setFiles(updatedFiles);
-    localStorage.setItem('files', JSON.stringify(updatedFiles));
-    setNewFileName("");
-    setShowNewFileModal(false);
   };
 
   const Tabs = [
@@ -276,39 +302,6 @@ const Workspace = ({ params }: any) => {
                 </div>
               </div>
             </div>
-
-            {/* New File Modal */}
-            {showNewFileModal && (
-              <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-                <div className="bg-[#3e2c1c] p-6 rounded-lg shadow-lg w-96">
-                  <h3 className="text-lg font-semibold text-[#e6d3b3] mb-4">
-                    Create New File
-                  </h3>
-                  <input
-                    className="w-full p-2 rounded bg-[#5c432a] text-[#e6d3b3] mb-4 outline-none border border-[#7c5c3e] focus:border-[#a67c52]"
-                    placeholder="File name"
-                    value={newFileName}
-                    onChange={(e) => setNewFileName(e.target.value)}
-                    autoFocus
-                  />
-                  <div className="flex justify-end gap-2">
-                    <button
-                      className="px-4 py-1 rounded bg-[#a67c52] text-[#3e2c1c] font-semibold hover:bg-[#e6d3b3]"
-                      onClick={handleCreateFile}
-                      disabled={!newFileName.trim()}
-                    >
-                      Create
-                    </button>
-                    <button
-                      className="px-4 py-1 rounded bg-[#5c432a] text-[#e6d3b3] font-semibold hover:bg-[#a67c52]"
-                      onClick={() => setShowNewFileModal(false)}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         ) : activeTab === "Both" ? (
           <ResizablePanelGroup
@@ -360,13 +353,55 @@ const Workspace = ({ params }: any) => {
                 fileData={files.find((f) => f._id === selectedFileId)!}
               />
             ) : (
-              <div className="flex items-center justify-center h-full text-[#e6d3b3] text-lg">
-                Select or create a file to start editing.
+              <div className="flex flex-col items-center justify-center h-full gap-4">
+                <p className="text-[#e6d3b3] text-lg">
+                  Select or create a file to start editing.
+                </p>
+                <Button
+                  onClick={onCreateCanvas}
+                  className="bg-[#a67c52] text-[#3c2c1c] hover:bg-[#e6d3b3]"
+                >
+                  New Canvas
+                </Button>
               </div>
             )}
           </div>
         ) : null}
       </div>
+
+      {/* New File Modal - Moved outside of tab conditions */}
+      {showNewFileModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-[#3e2c1c] p-6 rounded-lg shadow-lg w-96">
+            <h3 className="text-lg font-semibold text-[#e6d3b3] mb-4">
+              {activeTab === "Canvas" ? "Create New Canvas" : "Create New File"}
+            </h3>
+            <input
+              className="w-full p-2 rounded bg-[#5c432a] text-[#e6d3b3] mb-4 outline-none border border-[#7c5c3e] focus:border-[#a67c52]"
+              placeholder={activeTab === "Canvas" ? "Canvas name" : "File name"}
+              value={newFileName}
+              onChange={(e) => setNewFileName(e.target.value)}
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-4 py-1 rounded bg-[#a67c52] text-[#3e2c1c] font-semibold hover:bg-[#e6d3b3]"
+                onClick={handleCreateFile}
+                disabled={!newFileName.trim()}
+              >
+                Create
+              </button>
+              <button
+                className="px-4 py-1 rounded bg-[#5c432a] text-[#e6d3b3] font-semibold hover:bg-[#a67c52]"
+                onClick={() => setShowNewFileModal(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <RenameDialog
         isOpen={showRenameDialog}
         onClose={() => setShowRenameDialog(false)}

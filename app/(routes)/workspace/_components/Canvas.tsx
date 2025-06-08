@@ -4,7 +4,7 @@ import { Excalidraw, THEME } from "@excalidraw/excalidraw";
 import { toast } from "sonner";
 import styles from "../_styles/canvasStyles.module.css";
 import { MessageCircle, X } from "lucide-react";
-import { ClassroomChat } from "./ClassroomChat";
+
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -51,8 +51,13 @@ const Canvas = ({ onSaveTrigger, fileId, fileData }: CanvasProps) => {
       const currentFile = files.find((f: File) => f._id === fileId);
 
       if (currentFile?.whiteboard) {
-        const parsed = JSON.parse(currentFile.whiteboard);
-        setWhiteBoard(parsed);
+        try {
+          const parsed = JSON.parse(currentFile.whiteboard);
+          setWhiteBoard(Array.isArray(parsed) ? parsed : []);
+        } catch {
+          // Si le parsing échoue, initialiser avec un tableau vide
+          setWhiteBoard([]);
+        }
       } else {
         setWhiteBoard([]);
       }
@@ -145,39 +150,7 @@ const Canvas = ({ onSaveTrigger, fileId, fileData }: CanvasProps) => {
             dockedSidebarBreakpoint: 0,
           }}
         />
-      </div>      {/* Floating Chat Panel */}
-      <div
-        className={cn(
-          "fixed right-6 top-20 w-[400px] h-[calc(100vh-120px)] bg-[#3e2c1c] rounded-2xl shadow-2xl border border-[#7c5c3e] transition-all duration-300 transform z-30",
-          showChat ? "translate-x-0 opacity-100" : "translate-x-[420px] opacity-0 pointer-events-none"
-        )}
-      >
-        {/* Close Button */}
-        <button
-          onClick={() => setShowChat(false)}
-          className="absolute right-4 top-4 p-2 rounded-full hover:bg-[#5c432a] transition-all text-[#7c5c3e] hover:text-[#e6d3b3]"
-        >
-          <X className="h-6 w-6" />
-        </button>
-        <div className="flex-1 overflow-hidden h-full">
-          <ClassroomChat isAdmin={isAdmin} />
-        </div>
-      </div>
-
-      {/* Chat Toggle Button */}
-      <button
-        onClick={() => setShowChat(!showChat)}
-        className={cn(
-          "fixed bottom-6 right-6 p-3 bg-[#a67c52] text-[#3c2c1c] rounded-full shadow-lg transition-all duration-300 z-30",
-          showChat ? "hover:bg-[#7c5c3e]" : "hover:bg-[#e6d3b3]"
-        )}
-      >
-        {showChat ? (
-          <X className="w-6 h-6" />
-        ) : (
-          <MessageCircle className="w-6 h-6" />
-        )}
-      </button>
+      </div>      
     </div>
   ) : null;
 };
